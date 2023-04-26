@@ -48,10 +48,10 @@ release_config = {
 release_config["24"] = release_config["22"]
 
 
-def make_uncalibrated_jets_plot(ds: SXLocalxAOD[Event], jet_bank: str):
+def make_uncalibrated_jets_plot(ds: SXLocalxAOD[Event]):
     "Get the uncalibrated jets data from a file"
     jets = (
-        ds.SelectMany(lambda e: e.Jets(collection=jet_bank, calibrate=False))
+        ds.SelectMany(lambda e: e.Jets(calibrate=False))
         .Select(lambda j: j.pt())
         .as_awkward()
         .value()
@@ -116,7 +116,6 @@ if __name__ == "__main__":
     release_info_list = release_config[major_release]
     for release_info in release_info_list:
         data_file = release_info["file"]
-        jet_bank = release_info["jet_bank"]
         ds = SXLocalxAOD[Event](
             data_file,
             item_type=Event,
@@ -129,7 +128,7 @@ if __name__ == "__main__":
         for t in args.test:
             with ignore_cache():
                 if t == "jets_uncalib":
-                    make_uncalibrated_jets_plot(ds, jet_bank)
+                    make_uncalibrated_jets_plot(ds)
                 elif t == "jets_calib":
                     make_calibrated_jets_plot(ds)
                 elif t == "met":
