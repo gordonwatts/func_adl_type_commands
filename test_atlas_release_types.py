@@ -17,24 +17,32 @@ def run_command(cmd: str | List[str]):
     Args:
         cmd (str): Command to run
     """
-    if isinstance(cmd, list):
-        cmd = "powershell -c " + ";".join(cmd)
+    if not isinstance(cmd, list):
+        cmd = [cmd]
 
-    result = subprocess.run(
-        cmd,
-        capture_output=True,
-        text=True,
-    )
+    command_line = "powershell -c " + ";".join(cmd)
 
-    level = logging.INFO
-    if result.returncode != 0:
-        level = logging.ERROR
+    try:
+        result = subprocess.run(
+            command_line,
+            capture_output=True,
+            text=True,
+        )
 
-    logging.log(level, f"Result code from running {cmd}: {result.returncode}")
-    for line in result.stdout.split("\n"):
-        logging.log(level, f"stdout: {line}")
-    for line in result.stderr.split("\n"):
-        logging.log(level, f"stderr: {line}")
+        level = logging.INFO
+        if result.returncode != 0:
+            level = logging.ERROR
+
+        logging.log(level, f"Result code from running {cmd}: {result.returncode}")
+        for line in result.stdout.split("\n"):
+            logging.log(level, f"stdout: {line}")
+        for line in result.stderr.split("\n"):
+            logging.log(level, f"stderr: {line}")
+    except Exception:
+        logging.error("Exception was thrown running the following commands:")
+        for ln in cmd:
+            logging.error(f"  {ln}")
+        raise
 
 
 def create_type_json(release: str, clean: bool, location: Path) -> Path:
@@ -150,7 +158,7 @@ def do_test(args):
             # Install the package. We want to run locally, so need to install
             # a special flavor of func_adl_servicex.
             commands.append("python -m pip install func_adl_servicex[local]")
-            commands.append(f"python -m pip install {package_path.absolute()}")
+            commands.append(f"python -m pip install -e {package_path.absolute()}")
 
             # Copy over the script to make it easy to "run".
             shutil.copy(test_packages_path.absolute(), release_dir)

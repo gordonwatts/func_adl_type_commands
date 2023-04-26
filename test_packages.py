@@ -27,29 +27,31 @@ major_release = atlas_release.split(".")[0]
 release_config = {
     "21": [
         {
-            "file": r"C:\Users\gordo\Code\atlas_data\asg\mc_311321_physVal_Main.21.2.143.pool.root",
+            "file": r"C:\Users\gordo\Code\atlas\data\asg\mc_311321_physVal_Main.21.2.143.pool.root",
             "name": "PHYS",
+            "jet_bank": "AntiKt4EMPFlowJets",
         }
     ],
     "22": [
         {
-            "file": r"C:\Users\gordo\Code\atlas_data\asg\mc_410470_ttbar.DAOD_PHYS.22.2.110.pool.root.1",
+            "file": r"C:\Users\gordo\Code\atlas\data\asg\mc_410470_ttbar.DAOD_PHYS.22.2.110.pool.root.1",
             "name": "PHYS",
+            "jet_bank": "AntiKt4EMPFlowJets",
         },
         {
             "file": r"C:\Users\gordo\Code\atlas\data\asg\mc20_13TeV.410470.PhPy8EG_A14_ttbar_hdamp258p75_nonallhad.22.2.113.pool.root",
             "name": "PHYSLITE",
+            "jet_bank": "AnalysisJets",
         },
     ],
 }
 release_config["24"] = release_config["22"]
 
 
-def make_uncalibrated_jets_plot(ds: SXLocalxAOD[Event]):
+def make_uncalibrated_jets_plot(ds: SXLocalxAOD[Event], jet_bank: str):
     "Get the uncalibrated jets data from a file"
-    default_jet_collection = calib_tools.default_config.jet_collection
     jets = (
-        ds.SelectMany(lambda e: e.Jets(uncalibrated_collection=default_jet_collection))
+        ds.SelectMany(lambda e: e.Jets(uncalibrated_collection=jet_bank))
         .Select(lambda j: j.pt())
         .as_awkward()
         .value()
@@ -100,6 +102,8 @@ if __name__ == "__main__":
         "--test",
         help="Which tests should be run?",
         choices=["jets_uncalib", "jets_calib", "met"],
+        action="append",
+        default=[],
     )
 
     args = parser.parse_args()
@@ -112,6 +116,7 @@ if __name__ == "__main__":
     release_info_list = release_config[major_release]
     for release_info in release_info_list:
         data_file = release_info["file"]
+        jet_bank = release_info["jet_bank"]
         ds = SXLocalxAOD[Event](
             data_file,
             item_type=Event,
@@ -124,7 +129,7 @@ if __name__ == "__main__":
         for t in args.test:
             with ignore_cache():
                 if t == "jets_uncalib":
-                    make_uncalibrated_jets_plot(ds)
+                    make_uncalibrated_jets_plot(ds, jet_bank)
                 elif t == "jets_calib":
                     make_calibrated_jets_plot(ds)
                 elif t == "met":
