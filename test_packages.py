@@ -51,7 +51,7 @@ release_config["24"] = release_config["22"]
 def make_uncalibrated_jets_plot(ds: SXLocalxAOD[Event], jet_bank: str):
     "Get the uncalibrated jets data from a file"
     jets = (
-        ds.SelectMany(lambda e: e.Jets(uncalibrated_collection=jet_bank))
+        ds.SelectMany(lambda e: e.Jets(collection=jet_bank, calibrate=False))
         .Select(lambda j: j.pt())
         .as_awkward()
         .value()
