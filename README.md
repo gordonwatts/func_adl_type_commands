@@ -9,3 +9,7 @@ Use this command to build python packages with type information for
 * ATLAS PHYS/PHYSLITE R21, R22, and R24.
 
 Also, can do some simple testing to make sure that everything is working properly!
+
+```bash
+python .\test_atlas_release_types.py test --test jets_uncalib 24.2.3 --test_dir ..\testing_dir\
+```
