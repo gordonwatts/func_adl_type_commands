@@ -2,7 +2,12 @@ import argparse
 import logging
 import subprocess
 from pathlib import Path
+import sys
 from typing import List
+import tempfile
+import shutil
+
+test_valid = ["jets_uncalib", "jets_calib", "met"]
 
 
 def run_command(cmd: str | List[str]):
@@ -13,7 +18,7 @@ def run_command(cmd: str | List[str]):
         cmd (str): Command to run
     """
     if isinstance(cmd, list):
-        cmd = ";".join(cmd)
+        cmd = "powershell -c " + ";".join(cmd)
 
     result = subprocess.run(
         cmd,
@@ -50,7 +55,7 @@ def create_type_json(release: str, clean: bool, location: Path) -> Path:
     # Do the build.
     logging.info(f"Running container to build json type file for {release}")
     run_command(
-        "powershell ../../func-adl-types-atlas/scripts/build_xaod_edm.ps1"
+        "../../func-adl-types-atlas/scripts/build_xaod_edm.ps1"
         f" {release} {yaml_path}"
     )
     logging.info(f"Finished building json type file for {release}")
@@ -86,9 +91,7 @@ def create_python_package(
 
     # Re-create it.
     commands = []
-    commands.append(
-        r"powershell -c . c:\Users\gordo\Code\iris-hep\venv\Scripts\Activate.ps1"
-    )
+    commands.append(r". c:\Users\gordo\Code\iris-hep\venv\Scripts\Activate.ps1")
     commands.append(r"cd c:\Users\gordo\Code\iris-hep\func_adl_servicex_type_generator")
     commands.append(
         f"poetry run sx_type_gen {json_location.absolute()} --output_directory"
@@ -96,13 +99,72 @@ def create_python_package(
     )
     run_command(commands)
 
+    # Next we need to find the package - the actual name of the folder might vary a little bit
+    # Due to the release series.
+
     return package_location
 
 
+def do_build_for_release(release, args):
+    yaml_location = create_type_json(release, args.clean, args.type_json)
+    return create_python_package(release, args.clean, yaml_location, args.type_package)
+
+
 def do_build(args):
+    """Iterator that builds a package for each release.
+
+    Args:
+        args (): Command line arguments
+
+    Yields:
+        Path: THe path where the package is located
+    """
     for r in args.release:
-        yaml_location = create_type_json(r, args.clean, args.type_json)
-        create_python_package(r, args.clean, yaml_location, args.type_package)
+        do_build_for_release(r, args)
+    return 0
+
+
+def do_test(args):
+    """After making sure that the packages are built, run the requested tests
+
+    Args:
+        args (): Command line arguments
+    """
+    for r in args.release:
+        package_path = do_build_for_release(r, args)
+
+        # Build the commands to create the env and setup/run the test.
+        commands = []
+
+        test_packages_path = Path("test_packages.py")
+        assert test_packages_path.exists()
+
+        with tempfile.TemporaryDirectory() as release_dir_tmp:
+            release_dir = release_dir_tmp if args.test_dir is None else args.test_dir
+
+            commands.append(f"cd {release_dir}")
+            commands.append("python -m venv .venv")
+            commands.append(". .venv/Scripts/Activate.ps1")
+            commands.append("python -m pip install --upgrade pip")
+
+            # Install the package. We want to run locally, so need to install
+            # a special flavor of func_adl_servicex.
+            commands.append("python -m pip install func_adl_servicex[local]")
+            commands.append(f"python -m pip install {package_path.absolute()}")
+
+            # Copy over the script to make it easy to "run".
+            shutil.copy(test_packages_path.absolute(), release_dir)
+
+            # Commands to run the scripts
+            all_tests = args.test if len(args.test) > 0 else test_valid
+            test_args = " ".join([f"--test {t}" for t in all_tests])
+            verbose_arg = " -v" if args.verbose else ""
+
+            commands.append(f"python test_packages.py {test_args}{verbose_arg}")
+
+            # Finally, run the commands.
+            run_command(commands)
+    return 0
 
 
 if __name__ == "__main__":
@@ -121,34 +183,50 @@ if __name__ == "__main__":
     build_command = commands.add_parser(
         "build", help="Build type library for a release"
     )
-    build_command.add_argument(
-        "release", type=str, help="List of releases to build", action="append"
-    )
-    build_command.add_argument(
-        "--clean", type=bool, action=argparse.BooleanOptionalAction, default=False
-    )
-    build_command.add_argument(
-        "--type_json",
-        type=Path,
-        default=Path("../type_files"),
-        help="Location where yaml type files should be written",
-    )
-    build_command.add_argument(
-        "--type_package",
-        type=Path,
-        default=Path(
-            "../type_packages",
-            help="Location where the python type package should be created",
-        ),
-    )
+
+    def add_build_args(parser):
+        parser.add_argument(
+            "release", type=str, help="List of releases to build", action="append"
+        )
+        parser.add_argument(
+            "--clean", type=bool, action=argparse.BooleanOptionalAction, default=False
+        )
+        parser.add_argument(
+            "--type_json",
+            type=Path,
+            default=Path("../type_files"),
+            help="Location where yaml type files should be written",
+        )
+        parser.add_argument(
+            "--type_package",
+            type=Path,
+            default=Path(
+                "../type_packages",
+                help="Location where the python type package should be created",
+            ),
+        )
+
+    add_build_args(build_command)
     build_command.set_defaults(func=do_build)
+
+    # The test command
+    test_command = commands.add_parser("test", help="Run tests for a release")
+    test_command.add_argument("--test", choices=test_valid, default=[], action="append")
+    test_command.add_argument(
+        "--test_dir",
+        type=Path,
+        help="Path to place (and leave) test directory",
+        default=None,
+    )
+    add_build_args(test_command)
+    test_command.set_defaults(func=do_test)
 
     args = parser.parse_args()
 
     # Global flags
+    logging.basicConfig()
     if args.verbose:
-        logging.basicConfig()
         logging.getLogger().setLevel(logging.INFO)
 
     # Now execute the command
-    args.func(args)
+    sys.exit(args.func(args))
