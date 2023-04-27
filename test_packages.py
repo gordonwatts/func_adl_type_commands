@@ -28,19 +28,19 @@ release_config = {
     "21": [
         {
             "file": r"C:\Users\gordo\Code\atlas\data\asg\mc_311321_physVal_Main.21.2.143.pool.root",
-            "name": "PHYS",
+            "calibration": "PHYS",
             "jet_bank": "AntiKt4EMPFlowJets",
         }
     ],
     "22": [
         {
             "file": r"C:\Users\gordo\Code\atlas\data\asg\mc_410470_ttbar.DAOD_PHYS.22.2.110.pool.root.1",
-            "name": "PHYS",
+            "calibration": "PHYS",
             "jet_bank": "AntiKt4EMPFlowJets",
         },
         {
             "file": r"C:\Users\gordo\Code\atlas\data\asg\mc20_13TeV.410470.PhPy8EG_A14_ttbar_hdamp258p75_nonallhad.22.2.113.pool.root",
-            "name": "PHYSLITE",
+            "calibration": "PHYSLITE",
             "jet_bank": "AnalysisJets",
         },
     ],
@@ -116,12 +116,14 @@ if __name__ == "__main__":
     release_info_list = release_config[major_release]
     for release_info in release_info_list:
         data_file = release_info["file"]
+        data_format = release_info["calibration"]
         ds = SXLocalxAOD[Event](
             data_file,
             item_type=Event,
             docker_image="gitlab-registry.cern.ch/atlas/athena/analysisbase",
             docker_tag=atlas_release,
         )
+        ds = calib_tools.query_update(ds, calib_tools.default_config(data_format))
         logging.info(f"Using atlas release {atlas_release}")
 
         # Now, lets run on the files for tests.
