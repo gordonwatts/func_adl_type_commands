@@ -1,8 +1,9 @@
 # Test type packages with some simple functionality
 
-import tempfile
-import logging
 import argparse
+import logging
+import tempfile
+import time
 
 from func_adl_servicex import SXLocalxAOD
 from servicex import ignore_cache
@@ -10,15 +11,15 @@ from servicex import ignore_cache
 # Try to import one of the releases for testing.
 # Hopefully, only one is installed in the environment!
 try:
+    from func_adl_servicex_xaodr21 import atlas_release, calib_tools
     from func_adl_servicex_xaodr21.event_collection import Event
-    from func_adl_servicex_xaodr21 import calib_tools, atlas_release
 except Exception:
     try:
+        from func_adl_servicex_xaodr22 import atlas_release, calib_tools  # type: ignore
         from func_adl_servicex_xaodr22.event_collection import Event  # type: ignore
-        from func_adl_servicex_xaodr22 import calib_tools, atlas_release  # type: ignore
     except Exception:
+        from func_adl_servicex_xaodr24 import atlas_release, calib_tools  # type: ignore
         from func_adl_servicex_xaodr24.event_collection import Event  # type: ignore
-        from func_adl_servicex_xaodr24 import calib_tools, atlas_release  # type: ignore
 
 # Based on the release, we will use only one of the test data files
 major_release = atlas_release.split(".")[0]
@@ -62,10 +63,7 @@ def make_uncalibrated_jets_plot(ds: SXLocalxAOD[Event]):
 def make_calibrated_jets_plot(ds: SXLocalxAOD[Event]):
     "Get the uncalibrated jets data from a file"
     jets = (
-        ds.SelectMany(lambda e: e.Jets("AnalysisJets"))
-        .Select(lambda j: j.pt())
-        .as_awkward()
-        .value()
+        ds.SelectMany(lambda e: e.Jets()).Select(lambda j: j.pt()).as_awkward().value()
     )
     print(jets)
 
@@ -95,9 +93,7 @@ if __name__ == "__main__":
         description="Run tests against local SX in current venv",
         epilog="Tests, especially calibrated ones, can take a while to execute",
     )
-    parser.add_argument(
-        "-v", "--verbose", default=False, action=argparse.BooleanOptionalAction
-    )
+    parser.add_argument("-v", "--verbose", default=False, action="count")
     parser.add_argument(
         "--test",
         help="Which tests should be run?",
@@ -109,8 +105,10 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     logging.basicConfig()
-    if args.verbose:
+    if args.verbose == 1:
         logging.getLogger().setLevel(logging.INFO)
+    elif args.verbose >= 2:
+        logging.getLogger().setLevel(logging.DEBUG)
 
     # Build the dataset we will use for testing.
     release_info_list = release_config[major_release]
@@ -128,6 +126,7 @@ if __name__ == "__main__":
 
         # Now, lets run on the files for tests.
         for t in args.test:
+            start = time.time()
             with ignore_cache():
                 if t == "jets_uncalib":
                     make_uncalibrated_jets_plot(ds)
@@ -137,3 +136,5 @@ if __name__ == "__main__":
                     make_calibrated_met_plot(ds)
                 else:
                     raise NotImplementedError(f"Unknown test {t}")
+            end = time.time()
+            logging.info(f"{t}: {end - start:0.2f} seconds")
