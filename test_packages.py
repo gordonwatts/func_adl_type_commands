@@ -49,15 +49,22 @@ release_config = {
 release_config["24"] = release_config["22"]
 
 
-def make_uncalibrated_jets_plot(ds: SXLocalxAOD[Event]):
+def make_uncalibrated_jets_plot(ds: SXLocalxAOD[Event], uncalib_ok: bool = True):
     "Get the uncalibrated jets data from a file"
-    jets = (
-        ds.SelectMany(lambda e: e.Jets(calibrate=False))
-        .Select(lambda j: j.pt())
-        .as_awkward()
-        .value()
-    )
-    print(jets)
+    try:
+        jets = (
+            ds.SelectMany(lambda e: e.Jets(calibrate=False))
+            .Select(lambda j: j.pt())
+            .as_awkward()
+            .value()
+        )
+        print(jets)
+    except NotImplementedError e:
+        if uncalib_ok:
+            raise
+        if 'Requested uncalibrated' in str(e):
+            logging.info("Caught expected exception for uncalibrated jets: {e}")
+                
 
 
 def make_calibrated_jets_plot(ds: SXLocalxAOD[Event]):
