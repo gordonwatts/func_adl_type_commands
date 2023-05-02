@@ -13,11 +13,13 @@ from servicex import ignore_cache
 try:
     from func_adl_servicex_xaodr21 import atlas_release, calib_tools
     from func_adl_servicex_xaodr21.event_collection import Event
-except Exception:
+except Exception as e:
+    logging.info(f"Failed to load r21: {str(e)}")
     try:
         from func_adl_servicex_xaodr22 import atlas_release, calib_tools  # type: ignore
         from func_adl_servicex_xaodr22.event_collection import Event  # type: ignore
     except Exception:
+        logging.info(f"Failed to load r22: {str(e)}")
         from func_adl_servicex_xaodr24 import atlas_release, calib_tools  # type: ignore
         from func_adl_servicex_xaodr24.event_collection import Event  # type: ignore
 
@@ -31,6 +33,7 @@ release_config = {
             "file": r"C:\Users\gordo\Code\atlas\data\asg\mc_311321_physVal_Main.21.2.143.pool.root",
             "calibration": "PHYS",
             "jet_bank": "AntiKt4EMPFlowJets",
+            "uncalib_ok": True,
         }
     ],
     "22": [
@@ -38,11 +41,13 @@ release_config = {
             "file": r"C:\Users\gordo\Code\atlas\data\asg\mc_410470_ttbar.DAOD_PHYS.22.2.110.pool.root.1",
             "calibration": "PHYS",
             "jet_bank": "AntiKt4EMPFlowJets",
+            "uncalib_ok": True,
         },
         {
             "file": r"C:\Users\gordo\Code\atlas\data\asg\mc20_13TeV.410470.PhPy8EG_A14_ttbar_hdamp258p75_nonallhad.22.2.113.pool.root",
             "calibration": "PHYSLITE",
             "jet_bank": "AnalysisJets",
+            "uncalib_ok": False,
         },
     ],
 }
@@ -58,13 +63,12 @@ def make_uncalibrated_jets_plot(ds: SXLocalxAOD[Event], uncalib_ok: bool = True)
             .as_awkward()
             .value()
         )
-        print(jets)
-    except NotImplementedError e:
+        logging.info(jets)
+    except NotImplementedError as e:
         if uncalib_ok:
             raise
-        if 'Requested uncalibrated' in str(e):
+        if "Requested uncalibrated" in str(e):
             logging.info("Caught expected exception for uncalibrated jets: {e}")
-                
 
 
 def make_calibrated_jets_plot(ds: SXLocalxAOD[Event]):
@@ -72,7 +76,7 @@ def make_calibrated_jets_plot(ds: SXLocalxAOD[Event]):
     jets = (
         ds.SelectMany(lambda e: e.Jets()).Select(lambda j: j.pt()).as_awkward().value()
     )
-    print(jets)
+    logging.info(jets)
 
 
 def make_calibrated_met_plot(ds: SXLocalxAOD[Event]):
@@ -83,7 +87,7 @@ def make_calibrated_met_plot(ds: SXLocalxAOD[Event]):
         .as_awkward()
         .value()
     )
-    print(jets)
+    logging.info(jets)
 
 
 # If called from the command line
@@ -122,6 +126,7 @@ if __name__ == "__main__":
     for release_info in release_info_list:
         data_file = release_info["file"]
         data_format = release_info["calibration"]
+        uncalib_ok = release_info["uncalib_ok"]
         ds = SXLocalxAOD[Event](
             data_file,
             item_type=Event,
@@ -136,7 +141,7 @@ if __name__ == "__main__":
             start = time.time()
             with ignore_cache():
                 if t == "jets_uncalib":
-                    make_uncalibrated_jets_plot(ds)
+                    make_uncalibrated_jets_plot(ds, uncalib_ok=uncalib_ok)
                 elif t == "jets_calib":
                     make_calibrated_jets_plot(ds)
                 elif t == "met":
