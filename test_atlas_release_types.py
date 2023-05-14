@@ -107,8 +107,8 @@ def create_python_package(
     )
     run_command(commands)
 
-    # Next we need to find the package - the actual name of the folder might vary a little bit
-    # Due to the release series.
+    # Next we need to find the package - the actual name of the folder might vary a
+    # little bit due to the release series.
 
     return package_location
 
@@ -179,7 +179,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         prog="test_atlas_release_types",
         description="Build and test atlas release types",
-        epilog="Building type libraries can take considerable time. Unless the --clean option is used, previous outputs are used rather than regenerating from scratch.",
+        epilog="Building type libraries can take considerable time. Unless the --clean"
+        " option is used, previous outputs are used rather than regenerating from "
+        "scratch.",
     )
     parser.add_argument(
         "-v", "--verbose", default=False, action=argparse.BooleanOptionalAction
