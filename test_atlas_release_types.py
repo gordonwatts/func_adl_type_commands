@@ -179,7 +179,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         prog="test_atlas_release_types",
         description="Build and test atlas release types",
-        epilog="This takes a while",
+        epilog="Building type libraries can take considerable time. Unless the --clean option is used, previous outputs are used rather than regenerating from scratch.",
     )
     parser.add_argument(
         "-v", "--verbose", default=False, action=argparse.BooleanOptionalAction
