@@ -38,6 +38,11 @@ def run_command(cmd: str | List[str]):
             logging.log(level, f"stdout: {line}")
         for line in result.stderr.split("\n"):
             logging.log(level, f"stderr: {line}")
+
+        if result.returncode != 0:
+            raise RuntimeError(
+                f"Failed to execute (return code {result.returncode}): {command_line}"
+            )
     except Exception:
         logging.error("Exception was thrown running the following commands:")
         for ln in cmd:
