@@ -1,3 +1,4 @@
 # Just make sure to load up the package you are testing first. Then do this package.
 
 black
+func_adl_servicex
