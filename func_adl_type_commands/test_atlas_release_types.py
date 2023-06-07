@@ -104,7 +104,7 @@ def create_python_package(
 
     # Re-create it.
     commands = []
-    commands.append(r". c:\Users\gordo\Code\iris-hep\venv\Scripts\Activate.ps1")
+    commands.append(r". c:\Users\gordo\Code\iris-hep\venv_poetry\Scripts\Activate.ps1")
     commands.append(r"cd c:\Users\gordo\Code\iris-hep\func_adl_servicex_type_generator")
     commands.append(
         f"poetry run sx_type_gen {json_location.absolute()} --output_directory"
@@ -180,7 +180,7 @@ def do_test(args):
     return 0
 
 
-if __name__ == "__main__":
+def main():
     parser = argparse.ArgumentParser(
         prog="test_atlas_release_types",
         description="Build and test atlas release types",
@@ -244,4 +244,13 @@ if __name__ == "__main__":
         logging.getLogger().setLevel(logging.INFO)
 
     # Now execute the command
+    if not hasattr(args, "func"):
+        logging.error("No command found on command line")
+        parser.print_help()
+        exit(1)
+
     sys.exit(args.func(args))
+
+
+if __name__ == "__main__":
+    main()
