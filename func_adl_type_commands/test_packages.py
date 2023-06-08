@@ -1,7 +1,6 @@
 # Test type packages with some simple functionality
 
 import argparse
-from ctypes import ArgumentError
 import logging
 import tempfile
 import time
@@ -82,7 +81,7 @@ def error_bad_argument(ds: SXLocalxAOD[Event]):
             .value()
         )
         raise RuntimeError("Should have thrown an exception with bad argument")
-    except ArgumentError as e:
+    except TypeError as e:
         if "calibrated" not in str(e):
             raise
         logging.info("Caught expected exception for bad call to Jets method: {e}")
