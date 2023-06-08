@@ -1,6 +1,7 @@
 # Test type packages with some simple functionality
 
 import argparse
+from ctypes import ArgumentError
 import logging
 import tempfile
 import time
@@ -71,6 +72,22 @@ def make_uncalibrated_jets_plot(ds: SXLocalxAOD[Event], uncalib_ok: bool = True)
             logging.info("Caught expected exception for uncalibrated jets: {e}")
 
 
+def error_bad_argument(ds: SXLocalxAOD[Event]):
+    "Get the uncalibrated jets data from a file"
+    try:
+        (
+            ds.SelectMany(lambda e: e.Jets(calibrated=False))
+            .Select(lambda j: j.pt())
+            .as_awkward()
+            .value()
+        )
+        raise RuntimeError("Should have thrown an exception with bad argument")
+    except ArgumentError as e:
+        if "calibrated" not in str(e):
+            raise
+        logging.info("Caught expected exception for bad call to Jets method: {e}")
+
+
 def make_calibrated_jets_plot(ds: SXLocalxAOD[Event]):
     "Get the uncalibrated jets data from a file"
     jets = (
@@ -108,7 +125,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--test",
         help="Which tests should be run?",
-        choices=["jets_uncalib", "jets_calib", "met"],
+        choices=["jets_uncalib", "jets_calib", "met", "error_bad_argument"],
         action="append",
         default=[],
     )
@@ -146,6 +163,8 @@ if __name__ == "__main__":
                     make_calibrated_jets_plot(ds)
                 elif t == "met":
                     make_calibrated_met_plot(ds)
+                elif t == "error_bad_argument":
+                    error_bad_argument(ds)
                 else:
                     raise NotImplementedError(f"Unknown test {t}")
             end = time.time()

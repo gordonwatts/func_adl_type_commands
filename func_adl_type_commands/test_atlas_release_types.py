@@ -7,7 +7,7 @@ from typing import List
 import tempfile
 import shutil
 
-test_valid = ["jets_uncalib", "jets_calib", "met"]
+test_valid = ["jets_uncalib", "jets_calib", "met", "error_bad_argument"]
 
 
 def run_command(cmd: str | List[str]):
@@ -149,8 +149,10 @@ def do_test(args):
         # Build the commands to create the env and setup/run the test.
         commands = []
 
-        test_packages_path = Path("test_packages.py")
-        assert test_packages_path.exists()
+        test_packages_path = Path(__file__).parent / "test_packages.py"
+        assert (
+            test_packages_path.exists()
+        ), f"Configuration error: cannot find {test_packages_path}"
 
         with tempfile.TemporaryDirectory() as release_dir_tmp:
             release_dir = release_dir_tmp if args.test_dir is None else args.test_dir
