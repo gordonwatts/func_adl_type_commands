@@ -11,7 +11,7 @@ Use this command to build python packages with type information for
 To get help:
 
 ```text
-(.venv) PS C:\Users\gordo\Code\iris-hep\atlas_types\func_adl_type_commands> python .\test_atlas_release_types.py --help
+(.venv) PS C:\Users\gordo\Code\iris-hep\atlas_types\func_adl_type_commands> atlas_build_type_info --help
 usage: test_atlas_release_types [-h] [-v | --verbose | --no-verbose] {build,test} ...
 
 Build and test atlas release types
@@ -32,7 +32,7 @@ This takes a while
 ### Setup
 
 1. Check out this package in an empty folder - other directories will be created in this folder (like the packages themselves). For purposes of this discussion the directory is called `atlas_types`.
-1. Once checked out, create a `venv` using `requirements.txt` at the root of this package. This `venv` will be only for running commands in this package.
+1. Once checked out, create a `venv`, and use `pip install .` at the root of this package. This `venv` will be only for running commands in this package.
 1. If you want to run the tests, you need the test files:
     * Use [cernbox](https://cernbox.cern.ch/files/spaces/eos/user/g/gwatts/public/data/asg_test_data?items-per-page=100&view-mode=resource-table&tiles-size=1) to download the files into a `data` directory in the `atlas_types` directory.
     * Some of these files are [un-necessarily large](https://github.com/gordonwatts/func_adl_type_commands/issues/1).
