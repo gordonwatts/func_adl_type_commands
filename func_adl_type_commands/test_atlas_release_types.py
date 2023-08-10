@@ -1,11 +1,15 @@
 import argparse
+from collections import defaultdict
+from dataclasses import dataclass
 import logging
-import subprocess
-from pathlib import Path
-import sys
-from typing import List
-import tempfile
 import shutil
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+from typing import List
+from rich.console import Console
+from rich.table import Table
 
 test_valid = ["jets_uncalib", "jets_calib", "met", "error_bad_argument"]
 
@@ -182,6 +186,45 @@ def do_test(args):
     return 0
 
 
+@dataclass
+class ReleaseInfo:
+    """Information about a release"""
+
+    has_type_json: bool = False
+    has_package: bool = False
+
+
+def do_list(args):
+    """Look through all the types and releases and report which are built
+    in a table to the user"""
+
+    info = defaultdict(ReleaseInfo)
+
+    # first, look for the type json files
+    for f in Path(args.type_json).glob("*.yaml"):
+        info[f.stem].has_type_json = True
+
+    # Next, lets look at the package directory for releases
+    for f in Path(args.type_package).glob("*"):
+        info[f.name].has_package = True
+
+    # Dump the info out as a rich table
+    table = Table(title="Release Information")
+    table.add_column("Release", justify="right", style="cyan", no_wrap=True)
+    table.add_column("Type JSON", justify="right", style="magenta", no_wrap=True)
+    table.add_column("Python Package", justify="right", style="green", no_wrap=True)
+
+    for r in info:
+        table.add_row(
+            r,
+            "Yes" if info[r].has_type_json else "No",
+            "Yes" if info[r].has_package else "No",
+        )
+
+    console = Console()
+    console.print(table)
+
+
 def main():
     parser = argparse.ArgumentParser(
         prog="test_atlas_release_types",
@@ -201,13 +244,17 @@ def main():
         "build", help="Build type library for a release"
     )
 
-    def add_build_args(parser):
-        parser.add_argument(
-            "release", type=str, help="List of releases to build", action="append"
-        )
-        parser.add_argument(
-            "--clean", type=bool, action=argparse.BooleanOptionalAction, default=False
-        )
+    def add_build_args(parser, add_release=True):
+        if add_release:
+            parser.add_argument(
+                "release", type=str, help="List of releases to build", action="append"
+            )
+            parser.add_argument(
+                "--clean",
+                type=bool,
+                action=argparse.BooleanOptionalAction,
+                default=False,
+            )
         parser.add_argument(
             "--type_json",
             type=Path,
@@ -237,6 +284,11 @@ def main():
     )
     add_build_args(test_command)
     test_command.set_defaults(func=do_test)
+
+    # The list command - list all releases that are built one way or the other.
+    list_command = commands.add_parser("list", help="List all releases")
+    list_command.set_defaults(func=do_list)
+    add_build_args(list_command, add_release=False)
 
     args = parser.parse_args()
 

@@ -5,7 +5,7 @@ description = "Commands for working with func_adl types"
 license = { text = "MIT" }
 authors = [{ name = "Gordon Watts <gwatts@uw.edu>" }]
 
-dependencies = ["func_adl_servicex"]
+dependencies = ["func_adl_servicex", "rich"]
 
 [project.optional-dependencies]
 test = ["black", "flake8"]
