@@ -25,6 +25,7 @@ def run_command(cmd: str | List[str]):
         cmd = [cmd]
 
     command_line = "powershell -c " + ";".join(cmd)
+    logging.info(f"Running command: {command_line}")
 
     try:
         result = subprocess.run(
@@ -149,6 +150,7 @@ def do_test(args):
     """
     for r in args.release:
         package_path = do_build_for_release(r, args)
+        logging.info(f"Running tests for release {r} in {package_path}")
 
         # Build the commands to create the env and setup/run the test.
         commands = []
@@ -158,6 +160,7 @@ def do_test(args):
             test_packages_path.exists()
         ), f"Configuration error: cannot find {test_packages_path}"
 
+        logging.debug("About to create the temp direcotry")
         with tempfile.TemporaryDirectory() as release_dir_tmp:
             release_dir = release_dir_tmp if args.test_dir is None else args.test_dir
 
@@ -182,6 +185,9 @@ def do_test(args):
             commands.append(f"python test_packages.py {test_args}{verbose_arg}")
 
             # Finally, run the commands.
+            logging.info(f"Running tests for release {r} - commands are:")
+            for cmd in commands:
+                logging.info(f"  {cmd}")
             run_command(commands)
     return 0
 

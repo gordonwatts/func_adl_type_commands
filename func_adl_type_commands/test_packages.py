@@ -57,6 +57,7 @@ release_config["24"] = release_config["22"]
 def make_uncalibrated_jets_plot(ds: SXLocalxAOD[Event], uncalib_ok: bool = True):
     "Get the uncalibrated jets data from a file"
     try:
+        logging.info("Starting uncalibrated jets test")
         jets = (
             ds.SelectMany(lambda e: e.Jets(calibrate=False))
             .Select(lambda j: j.pt())
@@ -89,6 +90,7 @@ def error_bad_argument(ds: SXLocalxAOD[Event]):
 
 def make_calibrated_jets_plot(ds: SXLocalxAOD[Event]):
     "Get the uncalibrated jets data from a file"
+    logging.info("Starting calibrated jets test")
     jets = (
         ds.SelectMany(lambda e: e.Jets()).Select(lambda j: j.pt()).as_awkward().value()
     )
@@ -97,6 +99,7 @@ def make_calibrated_jets_plot(ds: SXLocalxAOD[Event]):
 
 def make_calibrated_met_plot(ds: SXLocalxAOD[Event]):
     "Get the uncalibrated jets data from a file"
+    logging.info("Starting calibrated MET test")
     jets = (
         ds.SelectMany(lambda e: e.MissingET())
         .Select(lambda met: met.met())
