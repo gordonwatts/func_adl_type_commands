@@ -25,7 +25,7 @@ def run_command(cmd: str | List[str]):
         cmd = [cmd]
 
     command_line = "powershell -c " + ";".join(cmd)
-    logging.info(f"Running command: {command_line}")
+    logging.debug(f"Running command: {command_line}")
 
     try:
         result = subprocess.run(
@@ -67,16 +67,16 @@ def create_type_json(release: str, clean: bool, location: Path) -> Path:
     # Can we skip?
     yaml_path = location / f"{release}.yaml"
     if yaml_path.exists() and (not clean):
-        logging.info(f"YAML type file for {release} already exists. Not rebuilding")
+        logging.debug(f"YAML type file for {release} already exists. Not rebuilding")
         return yaml_path
 
     # Do the build.
-    logging.info(f"Running container to build json type file for {release}")
+    logging.debug(f"Running container to build json type file for {release}")
     run_command(
         "../../func-adl-types-atlas/scripts/build_xaod_edm.ps1"
         f" {release} {yaml_path}"
     )
-    logging.info(f"Finished building json type file for {release}")
+    logging.debug(f"Finished building json type file for {release}")
 
     return yaml_path
 
@@ -102,7 +102,7 @@ def create_python_package(
     # See if we can bail out quickly
     package_location = location / release
     if package_location.exists() and (not clean):
-        logging.info(
+        logging.debug(
             f"Python package for release {release} already exists. Not rebuilding."
         )
         return package_location
@@ -150,7 +150,7 @@ def do_test(args):
     """
     for r in args.release:
         package_path = do_build_for_release(r, args)
-        logging.info(f"Running tests for release {r} in {package_path}")
+        logging.debug(f"Running tests for release {r} in {package_path}")
 
         # Build the commands to create the env and setup/run the test.
         commands = []
@@ -180,16 +180,14 @@ def do_test(args):
             # Commands to run the scripts
             all_tests = args.test if len(args.test) > 0 else test_valid
             test_args = " ".join([f"--test {t}" for t in all_tests])
-            verbose_arg = (
-                (" -" + "".join(["v"] * int(args.verbose))) if args.verbose > 0 else ""
-            )
+            verbose_arg = (" -" + "v" * int(args.verbose)) if args.verbose > 0 else ""
 
             commands.append(f"python test_packages.py {test_args}{verbose_arg}")
 
             # Finally, run the commands.
-            logging.info(f"Running tests for release {r} - commands are:")
+            logging.debug(f"Running tests for release {r} - commands are:")
             for cmd in commands:
-                logging.info(f"  {cmd}")
+                logging.debug(f"  {cmd}")
             run_command(commands)
     return 0
 
@@ -239,13 +237,13 @@ def do_delete(args):
         # Delete the type packages
         package_path = Path(args.type_package) / r
         if package_path.exists():
-            logging.info(f"Removing package {package_path}")
+            logging.debug(f"Removing package {package_path}")
             shutil.rmtree(package_path)
 
         # Delete the type json file
         json_path = Path(args.type_json) / f"{r}.yaml"
         if json_path.exists():
-            logging.info(f"Removing type json {json_path}")
+            logging.debug(f"Removing type json {json_path}")
             json_path.unlink()
     return 0
 
@@ -259,7 +257,11 @@ def main():
         "scratch.",
     )
     parser.add_argument(
-        "-v", "--verbose", default=False, action=argparse.BooleanOptionalAction
+        "-v",
+        "--verbose",
+        action="count",
+        default=0,
+        help="Verbosity Level (-v, or -vv))",
     )
 
     commands = parser.add_subparsers(help="sub-command help")
