@@ -152,8 +152,10 @@ if __name__ == "__main__":
             docker_image="gitlab-registry.cern.ch/atlas/athena/analysisbase",
             docker_tag=atlas_release,
         )
-        ds = calib_tools.query_update(ds, calib_tools.default_config(data_format))
+        default_calibration = calib_tools.default_config(data_format)
+        ds = calib_tools.query_update(ds, default_calibration)
         logging.info(f"Using atlas release {atlas_release}")
+        logging.info(f"Using calibration for {data_format}: {default_calibration}")
 
         # Now, lets run on the files for tests.
         for t in args.test:

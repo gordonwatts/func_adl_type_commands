@@ -180,7 +180,9 @@ def do_test(args):
             # Commands to run the scripts
             all_tests = args.test if len(args.test) > 0 else test_valid
             test_args = " ".join([f"--test {t}" for t in all_tests])
-            verbose_arg = " -v" if args.verbose else ""
+            verbose_arg = (
+                (" -" + "".join(["v"] * int(args.verbose))) if args.verbose > 0 else ""
+            )
 
             commands.append(f"python test_packages.py {test_args}{verbose_arg}")
 
@@ -229,6 +231,23 @@ def do_list(args):
 
     console = Console()
     console.print(table)
+
+
+def do_delete(args):
+    """Delete the release packages"""
+    for r in args.release:
+        # Delete the type packages
+        package_path = Path(args.type_package) / r
+        if package_path.exists():
+            logging.info(f"Removing package {package_path}")
+            shutil.rmtree(package_path)
+
+        # Delete the type json file
+        json_path = Path(args.type_json) / f"{r}.yaml"
+        if json_path.exists():
+            logging.info(f"Removing type json {json_path}")
+            json_path.unlink()
+    return 0
 
 
 def main():
@@ -295,6 +314,11 @@ def main():
     list_command = commands.add_parser("list", help="List all releases")
     list_command.set_defaults(func=do_list)
     add_build_args(list_command, add_release=False)
+
+    # delete command - will delete a release(s) (type and package files).
+    delete_command = commands.add_parser("delete", help="Delete a release")
+    add_build_args(delete_command)
+    delete_command.set_defaults(func=do_delete)
 
     args = parser.parse_args()
 
