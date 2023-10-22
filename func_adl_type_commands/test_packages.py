@@ -2,6 +2,7 @@
 
 import argparse
 import logging
+from pathlib import Path
 import tempfile
 import time
 
@@ -54,25 +55,29 @@ release_config = {
 release_config["24"] = release_config["22"]
 
 
-def make_uncalibrated_jets_plot(ds: SXLocalxAOD[Event], uncalib_ok: bool = True):
+def make_uncalibrated_jets_plot(
+    logger: logging.Logger, ds: SXLocalxAOD[Event], uncalib_ok: bool = True
+):
     "Get the uncalibrated jets data from a file"
     try:
+        logger.info("Starting uncalibrated jets test")
         jets = (
             ds.SelectMany(lambda e: e.Jets(calibrate=False))
             .Select(lambda j: j.pt())
             .as_awkward()
             .value()
         )
-        logging.info(jets)
+        logger.info(jets)
     except NotImplementedError as e:
         if uncalib_ok:
             raise
         if "Requested uncalibrated" in str(e):
-            logging.info("Caught expected exception for uncalibrated jets: {e}")
+            logger.debug(f"Caught expected exception for uncalibrated jets: {e}")
 
 
-def error_bad_argument(ds: SXLocalxAOD[Event]):
+def error_bad_argument(logger: logging.Logger, ds: SXLocalxAOD[Event]):
     "Get the uncalibrated jets data from a file"
+    logger.info("Starting bad argument test")
     try:
         (
             ds.SelectMany(lambda e: e.Jets(calibrated=False))
@@ -84,35 +89,35 @@ def error_bad_argument(ds: SXLocalxAOD[Event]):
     except TypeError as e:
         if "calibrated" not in str(e):
             raise
-        logging.info("Caught expected exception for bad call to Jets method: {e}")
+        logger.debug(f"Caught expected exception for bad call to Jets method: {e}")
 
 
-def make_calibrated_jets_plot(ds: SXLocalxAOD[Event]):
+def make_calibrated_jets_plot(logger: logging.Logger, ds: SXLocalxAOD[Event]):
     "Get the uncalibrated jets data from a file"
+    logger.info("Starting calibrated jets test")
     jets = (
         ds.SelectMany(lambda e: e.Jets()).Select(lambda j: j.pt()).as_awkward().value()
     )
-    logging.info(jets)
+    logger.info(jets)
 
 
-def make_calibrated_met_plot(ds: SXLocalxAOD[Event]):
+def make_calibrated_met_plot(logger: logging.Logger, ds: SXLocalxAOD[Event]):
     "Get the uncalibrated jets data from a file"
+    logger.info("Starting calibrated MET test")
     jets = (
         ds.SelectMany(lambda e: e.MissingET())
         .Select(lambda met: met.met())
         .as_awkward()
         .value()
     )
-    logging.info(jets)
+    logger.info(jets)
 
 
 # If called from the command line
 if __name__ == "__main__":
     # Get around a bug in how xAODDataset makes sure everything is ok.
     # TODO: Fix this bug in wherever it needs to be fixed.
-    logging.debug(
-        f"Fetching tempdir to prevent bug in xAODDataset {tempfile.gettempdir()}"
-    )
+    _ = tempfile.gettempdir()
 
     # Parse command line arguments.
     parser = argparse.ArgumentParser(
@@ -132,8 +137,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     logging.basicConfig()
+    logger = logging.getLogger(Path(__file__).stem)
     if args.verbose == 1:
-        logging.getLogger().setLevel(logging.INFO)
+        logger.setLevel(logging.INFO)
     elif args.verbose >= 2:
         logging.getLogger().setLevel(logging.DEBUG)
 
@@ -149,22 +155,24 @@ if __name__ == "__main__":
             docker_image="gitlab-registry.cern.ch/atlas/athena/analysisbase",
             docker_tag=atlas_release,
         )
-        ds = calib_tools.query_update(ds, calib_tools.default_config(data_format))
-        logging.info(f"Using atlas release {atlas_release}")
+        default_calibration = calib_tools.default_config(data_format)
+        ds = calib_tools.query_update(ds, default_calibration)
+        logger.debug(f"Using atlas release {atlas_release}")
+        logger.debug(f"Using calibration for {data_format}: {default_calibration}")
 
         # Now, lets run on the files for tests.
         for t in args.test:
             start = time.time()
             with ignore_cache():
                 if t == "jets_uncalib":
-                    make_uncalibrated_jets_plot(ds, uncalib_ok=uncalib_ok)
+                    make_uncalibrated_jets_plot(logger, ds, uncalib_ok=uncalib_ok)
                 elif t == "jets_calib":
-                    make_calibrated_jets_plot(ds)
+                    make_calibrated_jets_plot(logger, ds)
                 elif t == "met":
-                    make_calibrated_met_plot(ds)
+                    make_calibrated_met_plot(logger, ds)
                 elif t == "error_bad_argument":
-                    error_bad_argument(ds)
+                    error_bad_argument(logger, ds)
                 else:
                     raise NotImplementedError(f"Unknown test {t}")
             end = time.time()
-            logging.info(f"{t}: {end - start:0.2f} seconds")
+            logger.info(f"{t}, {data_format}: {end - start:0.2f} seconds")

@@ -1,11 +1,15 @@
 import argparse
+from collections import defaultdict
+from dataclasses import dataclass
 import logging
-import subprocess
-from pathlib import Path
-import sys
-from typing import List
-import tempfile
 import shutil
+import subprocess
+import sys
+import tempfile
+from pathlib import Path
+from typing import List
+from rich.console import Console
+from rich.table import Table
 
 test_valid = ["jets_uncalib", "jets_calib", "met", "error_bad_argument"]
 
@@ -21,6 +25,7 @@ def run_command(cmd: str | List[str]):
         cmd = [cmd]
 
     command_line = "powershell -c " + ";".join(cmd)
+    logging.debug(f"Running command: {command_line}")
 
     try:
         result = subprocess.run(
@@ -62,16 +67,16 @@ def create_type_json(release: str, clean: bool, location: Path) -> Path:
     # Can we skip?
     yaml_path = location / f"{release}.yaml"
     if yaml_path.exists() and (not clean):
-        logging.info(f"YAML type file for {release} already exists. Not rebuilding")
+        logging.debug(f"YAML type file for {release} already exists. Not rebuilding")
         return yaml_path
 
     # Do the build.
-    logging.info(f"Running container to build json type file for {release}")
+    logging.debug(f"Running container to build json type file for {release}")
     run_command(
         "../../func-adl-types-atlas/scripts/build_xaod_edm.ps1"
         f" {release} {yaml_path}"
     )
-    logging.info(f"Finished building json type file for {release}")
+    logging.debug(f"Finished building json type file for {release}")
 
     return yaml_path
 
@@ -97,7 +102,7 @@ def create_python_package(
     # See if we can bail out quickly
     package_location = location / release
     if package_location.exists() and (not clean):
-        logging.info(
+        logging.debug(
             f"Python package for release {release} already exists. Not rebuilding."
         )
         return package_location
@@ -145,6 +150,7 @@ def do_test(args):
     """
     for r in args.release:
         package_path = do_build_for_release(r, args)
+        logging.debug(f"Running tests for release {r} in {package_path}")
 
         # Build the commands to create the env and setup/run the test.
         commands = []
@@ -154,6 +160,7 @@ def do_test(args):
             test_packages_path.exists()
         ), f"Configuration error: cannot find {test_packages_path}"
 
+        logging.debug("About to create the temp direcotry")
         with tempfile.TemporaryDirectory() as release_dir_tmp:
             release_dir = release_dir_tmp if args.test_dir is None else args.test_dir
 
@@ -173,12 +180,71 @@ def do_test(args):
             # Commands to run the scripts
             all_tests = args.test if len(args.test) > 0 else test_valid
             test_args = " ".join([f"--test {t}" for t in all_tests])
-            verbose_arg = " -v" if args.verbose else ""
+            verbose_arg = (" -" + "v" * int(args.verbose)) if args.verbose > 0 else ""
 
             commands.append(f"python test_packages.py {test_args}{verbose_arg}")
 
             # Finally, run the commands.
+            logging.debug(f"Running tests for release {r} - commands are:")
+            for cmd in commands:
+                logging.debug(f"  {cmd}")
             run_command(commands)
+    return 0
+
+
+@dataclass
+class ReleaseInfo:
+    """Information about a release"""
+
+    has_type_json: bool = False
+    has_package: bool = False
+
+
+def do_list(args):
+    """Look through all the types and releases and report which are built
+    in a table to the user"""
+
+    info = defaultdict(ReleaseInfo)
+
+    # first, look for the type json files
+    for f in Path(args.type_json).glob("*.yaml"):
+        info[f.stem].has_type_json = True
+
+    # Next, lets look at the package directory for releases
+    for f in Path(args.type_package).glob("*"):
+        info[f.name].has_package = True
+
+    # Dump the info out as a rich table
+    table = Table(title="Release Information")
+    table.add_column("Release", justify="right", style="cyan", no_wrap=True)
+    table.add_column("Type JSON", justify="right", style="magenta", no_wrap=True)
+    table.add_column("Python Package", justify="right", style="green", no_wrap=True)
+
+    for r in info:
+        table.add_row(
+            r,
+            "Yes" if info[r].has_type_json else "No",
+            "Yes" if info[r].has_package else "No",
+        )
+
+    console = Console()
+    console.print(table)
+
+
+def do_delete(args):
+    """Delete the release packages"""
+    for r in args.release:
+        # Delete the type packages
+        package_path = Path(args.type_package) / r
+        if package_path.exists():
+            logging.debug(f"Removing package {package_path}")
+            shutil.rmtree(package_path)
+
+        # Delete the type json file
+        json_path = Path(args.type_json) / f"{r}.yaml"
+        if json_path.exists():
+            logging.debug(f"Removing type json {json_path}")
+            json_path.unlink()
     return 0
 
 
@@ -191,7 +257,11 @@ def main():
         "scratch.",
     )
     parser.add_argument(
-        "-v", "--verbose", default=False, action=argparse.BooleanOptionalAction
+        "-v",
+        "--verbose",
+        action="count",
+        default=0,
+        help="Verbosity Level (-v, or -vv))",
     )
 
     commands = parser.add_subparsers(help="sub-command help")
@@ -201,13 +271,17 @@ def main():
         "build", help="Build type library for a release"
     )
 
-    def add_build_args(parser):
-        parser.add_argument(
-            "release", type=str, help="List of releases to build", action="append"
-        )
-        parser.add_argument(
-            "--clean", type=bool, action=argparse.BooleanOptionalAction, default=False
-        )
+    def add_build_args(parser, add_release=True):
+        if add_release:
+            parser.add_argument(
+                "release", type=str, help="List of releases to build", action="append"
+            )
+            parser.add_argument(
+                "--clean",
+                type=bool,
+                action=argparse.BooleanOptionalAction,
+                default=False,
+            )
         parser.add_argument(
             "--type_json",
             type=Path,
@@ -237,6 +311,16 @@ def main():
     )
     add_build_args(test_command)
     test_command.set_defaults(func=do_test)
+
+    # The list command - list all releases that are built one way or the other.
+    list_command = commands.add_parser("list", help="List all releases")
+    list_command.set_defaults(func=do_list)
+    add_build_args(list_command, add_release=False)
+
+    # delete command - will delete a release(s) (type and package files).
+    delete_command = commands.add_parser("delete", help="Delete a release")
+    add_build_args(delete_command)
+    delete_command.set_defaults(func=do_delete)
 
     args = parser.parse_args()
 
