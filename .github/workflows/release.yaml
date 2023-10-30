@@ -1,0 +1,41 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_version:
+        description: "Release version"
+        required: true
+        default: "24.2.12"
+      func_adl_servicex_type_generator_version:
+        description: "func_adl_servicex_type_generator github tag"
+        required: true
+        default: "v1.0b1"
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: |
+          pip install gordonwatts/func_adl_servicex_type_generator@$2
+      - name: Install func_adl_servicex_type_generator
+        uses: actions/checkout@v2
+        with:
+          repository: gordonwatts/func_adl_servicex_type_generator
+          ref: ${{ github.event.inputs.func_adl_servicex_type_generator_version }}
+          path: func_adl_servicex_type_generator
+      - name: Install dependencies
+        run: |
+          pip install func_adl_servicex_type_generator
+      - name: Release
+        env:
+          RELEASE_VERSION: ${{ github.event.inputs.release_version }}
+        run: |
+          echo "Release version: $RELEASE_VERSION"
