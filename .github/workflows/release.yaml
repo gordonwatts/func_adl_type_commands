@@ -24,7 +24,7 @@ jobs:
           python-version: "3.11"
       - name: Install dependencies
         run: |
-          pip install gordonwatts/func_adl_servicex_type_generator@$2
+          pip install -e .
       - name: Install func_adl_servicex_type_generator
         uses: actions/checkout@v2
         with:
@@ -33,7 +33,8 @@ jobs:
           path: func_adl_servicex_type_generator
       - name: Install dependencies
         run: |
-          pip install func_adl_servicex_type_generator
+          cd func_adl_servicex_type_generator
+          pip install -e .
       - name: Release
         env:
           RELEASE_VERSION: ${{ github.event.inputs.release_version }}
