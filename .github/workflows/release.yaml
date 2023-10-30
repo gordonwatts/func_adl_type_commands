@@ -39,4 +39,5 @@ jobs:
         env:
           RELEASE_VERSION: ${{ github.event.inputs.release_version }}
         run: |
+          pip list
           echo "Release version: $RELEASE_VERSION"
