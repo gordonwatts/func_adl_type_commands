@@ -39,19 +39,16 @@ jobs:
         run: |
           cd func_adl_servicex_type_generator
           pip install -e .
-      - name: Install func_adl_servicex_type_generator
+      - name: Install func-adl-types-atlas
         uses: actions/checkout@v2
         with:
           repository: gordonwatts/func-adl-types-atlas
           ref: ${{ github.event.inputs.func_adl_types_atlas_version }}
           path: func_adl_types_atlas
-      - name: Install dependencies
-        run: |
-          cd func_adl_types_atlas
-          pip install -e .
-      - name: Release
+      - name: Build YAML Type File
         env:
           RELEASE_VERSION: ${{ github.event.inputs.release_version }}
         run: |
           pip list
           echo "Release version: $RELEASE_VERSION"
+          ls -R
