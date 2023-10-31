@@ -11,6 +11,10 @@ on:
         description: "func_adl_servicex_type_generator github tag"
         required: true
         default: "v1.0b1"
+      func_adl_types_atlas_version:
+        description: "func_adl_types_atlas github tag"
+        required: true
+        default: "v1.0b1"
 
 jobs:
   release:
@@ -34,6 +38,16 @@ jobs:
       - name: Install dependencies
         run: |
           cd func_adl_servicex_type_generator
+          pip install -e .
+      - name: Install func_adl_servicex_type_generator
+        uses: actions/checkout@v2
+        with:
+          repository: gordonwatts/func_adl_types_atlas
+          ref: ${{ github.event.inputs.func_adl_servicex_type_generator_version }}
+          path: func_adl_types_atlas
+      - name: Install dependencies
+        run: |
+          cd func_adl_types_atlas
           pip install -e .
       - name: Release
         env:
