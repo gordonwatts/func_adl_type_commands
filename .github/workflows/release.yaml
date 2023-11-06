@@ -51,4 +51,3 @@ jobs:
         run: |
           pip list
           echo "Release version: $RELEASE_VERSION"
-          ls -R
